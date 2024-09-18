@@ -32,6 +32,8 @@ async def inc_user(_, message: Message):
             return await message.reply_text(
                 "**Hi, I am a ranking bot.**\n\nI can rank the top 10 users in a chat based on the number of messages they have sent.\n\nClick /top to see the top 10 users in this chat."
             )
+        elif command in ["/profile@RankingssBot", "/profile"]:
+            return await show_user_profile(_, message)
 
     chat = message.chat.id
     user = message.from_user.id
@@ -43,6 +45,28 @@ async def start(_, message: Message):
     await message.reply_text(
         "**Hi, I am a ranking bot.**\n\nI can rank the top 10 users in a chat based on the number of messages they have sent.\n\nAdd me to a group and make me admin.\n\nClick /top to see the top 10 users in the chat."
     )
+
+async def show_user_profile(_, message: Message):
+    chat = message.chat.id
+    user = message.from_user.id
+    today = str(date.today())
+    
+    user_data = chatdb.find_one({"chat": chat})
+
+    if not user_data or today not in user_data:
+        return await message.reply_text("No profile data available for today.")
+
+    user_messages_today = user_data[today].get(str(user), 0)
+    total_messages = sum(user_data[today].values())
+    user_name = await get_name(app, user)
+
+    response_text = (
+        f"**{user_name}'s Profile:**\n"
+        f"📅 **Today's Messages:** {user_messages_today}\n"
+        f"✉️ **Total Messages Today:** {total_messages}\n"
+    )
+
+    await message.reply_text(response_text)
 
 async def show_top_today(_, message: Message):
     logging.info(f"Showing today's top in {message.chat.id}")
@@ -113,7 +137,7 @@ async def show_top_today_callback(_, query: CallbackQuery):
 
     total = sum(chat[today].values())
     t += f'\n✉️ Today messages: {total}'
-    
+
     await query.message.edit_text(t, reply_markup=create_reply_markup("Overall Ranking", "overall"))
 
 if __name__ == "__main__":
