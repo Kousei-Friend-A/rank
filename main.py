@@ -15,7 +15,7 @@ app = Client(
     "rankingbot",
     api_id="8143727",
     api_hash="e2e9b22c6522465b62d8445840a526b1",
-    bot_token="7410449895:AAEDKUZgESTW9WEDIk5CNiduYdtmnJoN1gQ",
+    bot_token="7455412177:AAH88hiP4bt_DsMdTWyyfRBNRth3Xyl53JE",
 )
 
 @app.on_message(
@@ -27,9 +27,9 @@ app = Client(
 )
 async def inc_user(_, message: Message):
     if message.text:
-        if message.text.strip() in ["/top", "/top@RankingX_bot"]:
+        if message.text.strip() in ["/top", "/top@RankingBeta_bot"]:
             return await show_top_today(_, message)
-        if message.text.strip() in ["/start", "/start@RankingX_bot"]:
+        if message.text.strip() in ["/start", "/start@RankingBeta_bot"]:
             return await message.reply_text(
                 "**Hi, I am a ranking bot.**\n\nI can rank the top 10 users in a chat based on the number of messages they have sent.\n\nClick /top to see the top 10 users in this chat."
             )
