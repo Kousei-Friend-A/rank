@@ -17,7 +17,6 @@ app = Client(
 async def handle_message(_, message: Message):
     chat_id = message.chat.id
     user_id = message.from_user.id
-
     # Increment message count
     increase_count(chat_id, user_id)
 
@@ -80,6 +79,14 @@ async def profile(_, message: Message):
 
     await message.reply_text(response)
 
+@app.on_message(filters.private & filters.command("top"))
+async def top_private(_, message: Message):
+    response = (
+        "The `/top` command can only be used in group chats.\n"
+        "Please use this command in a group where I am a member."
+    )
+    await message.reply_text(response)
+
 @app.on_message(filters.group & filters.command("top"))
 async def show_top_today(_, message: Message):
     chat_id = message.chat.id
@@ -106,6 +113,24 @@ async def show_top_today(_, message: Message):
             [[InlineKeyboardButton("Overall Ranking", callback_data="overall")]]
         )
     )
+
+@app.on_message(filters.group & filters.command("profile"))
+async def group_profile(_, message: Message):
+    user_id = message.from_user.id
+    user_record = user_db.find_one({"user_id": str(user_id)})
+
+    if user_record:
+        level = user_record.get("level", 1)
+        message_count = user_record.get("message_count", 0)
+        response = (
+            f"**Your Profile:**\n\n"
+            f"**Level:** {level}\n"
+            f"**Messages Sent:** {message_count}\n"
+        )
+    else:
+        response = "You don't have a profile yet."
+
+    await message.reply_text(response)
 
 print("Bot started")
 app.run()
