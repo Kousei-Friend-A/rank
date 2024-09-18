@@ -9,7 +9,7 @@ app = Client(
     "rankingbot",
     api_id="8143727",
     api_hash="e2e9b22c6522465b62d8445840a526b1",
-    bot_token="7410449895:AAEDKUZgESTW9WEDIk5CNiduYdtmnJoN1gQ",
+    bot_token="7455412177:AAH88hiP4bt_DsMdTWyyfRBNRth3Xyl53JE",
 )
 
 @app.on_message(filters.group & ~filters.bot & ~filters.forwarded & ~filters.via_bot & ~filters.service)
