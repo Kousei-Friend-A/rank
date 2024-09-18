@@ -23,7 +23,6 @@ async def handle_message(_, message: Message):
 
 @app.on_message(filters.private & filters.command("start"))
 async def start(_, message: Message):
-    invite_link = await app.export_chat_invite_link(message.chat.id)
     response = (
         "**Hello!**\n\n"
         "I'm a ranking bot that tracks the top users in a chat based on message count. You can see the rankings by using /top. "
