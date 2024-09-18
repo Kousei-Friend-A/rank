@@ -2,7 +2,7 @@ from pymongo.mongo_client import MongoClient
 from datetime import date
 import logging
 
-uri = "mongodb://root:JlVQfH9cTsdvjK3uqry8mnip1iK81KDgl9g7TwAa4U7JgGBOIbpcgH7s6Fikp247@jk4cgscg8440gcswkw4cgswg:27017/?directConnection=true"
+uri = "mongodb://root:6cK44nQntSN0Cru8Nqstxxb8CDbSxsFo9PL55UByB323BM42z9H7HsaqXFn4etD4@eog8448c8skw4wk0cogwsk4s:27017/?directConnection=true"
 mongo = MongoClient(uri).Rankings
 chatdb = mongo.chat
 
