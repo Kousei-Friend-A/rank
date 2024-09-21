@@ -3,42 +3,49 @@ import uvloop
 from pyrogram.client import Client
 from pyrogram import filters
 from datetime import date
-from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-import logging
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+from pyrogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 uvloop.install()
 app = Client(
     "boto",
     api_id="8143727",
     api_hash="e2e9b22c6522465b62d8445840a526b1",
-    bot_token="7455412177:AAH88hiP4bt_DsMdTWyyfRBNRth3Xyl53JE",
+    bot_token="7410449895:AAEDKUZgESTW9WEDIk5CNiduYdtmnJoN1gQ",
 )
 
-def create_reply_markup(button_text, callback_data):
-    return InlineKeyboardMarkup([[InlineKeyboardButton(button_text, callback_data=callback_data)]])
 
 @app.on_message(
-    ~filters.bot & ~filters.forwarded & filters.group & ~filters.via_bot & ~filters.service
+    ~filters.bot
+    & ~filters.forwarded
+    & filters.group
+    & ~filters.via_bot
+    & ~filters.service
 )
 async def inc_user(_, message: Message):
     if message.text:
-        command = message.text.strip()
-        if command in ["/top@RankingssBot", "/top"]:
+        if (
+            message.text.strip() == "/topRankingX_bot"
+            or message.text.strip() == "/top"
+        ):
             return await show_top_today(_, message)
-        elif command in ["/start@RankingssBot", "/start"]:
+        if (
+            message.text.strip() == "/start@RankingX_bot"
+            or message.text.strip() == "/start"
+        ):
             return await message.reply_text(
                 "**Hi, I am a ranking bot.**\n\nI can rank the top 10 users in a chat based on the number of messages they have sent.\n\nClick /top to see the top 10 users in this chat."
             )
-        elif command in ["/profile@RankingssBot", "/profile"]:
-            return await show_user_profile(_, message)
 
     chat = message.chat.id
     user = message.from_user.id
     increase_count(chat, user)
-    logging.info(f"{chat}, {user} increased")
+    print(chat, user, "increased")
+
 
 @app.on_message(filters.private)
 async def start(_, message: Message):
@@ -46,100 +53,147 @@ async def start(_, message: Message):
         "**Hi, I am a ranking bot.**\n\nI can rank the top 10 users in a chat based on the number of messages they have sent.\n\nAdd me to a group and make me admin.\n\nClick /top to see the top 10 users in the chat."
     )
 
-async def show_user_profile(_, message: Message):
-    chat = message.chat.id
-    user = message.from_user.id
-    today = str(date.today())
-    
-    user_data = chatdb.find_one({"chat": chat})
 
-    if not user_data or today not in user_data:
-        return await message.reply_text("No profile data available for today.")
+@app.on_message(filters.private | filters.group)
+async def status_command(_, message: Message):
+    if message.text and message.text.strip() == "/status":
+        # Fetch overall data from the database
+        all_chats = chatdb.find()  # Retrieve all chat documents
 
-    user_messages_today = user_data[today].get(str(user), 0)
-    total_messages = sum(user_data[today].values())
-    user_name = await get_name(app, user)
+        total_chats = 0
+        total_users = set()  # Use a set to avoid counting duplicates
+        total_messages = 0
 
-    response_text = (
-        f"**{user_name}'s Profile:**\n"
-        f"📅 **Today's Messages:** {user_messages_today}\n"
-        f"✉️ **Total Messages Today:** {total_messages}\n"
-    )
+        for chat in all_chats:
+            total_chats += 1
+            total_messages += sum(
+                sum(user_counts.values()) for user_counts in chat.values() if isinstance(user_counts, dict)
+            )
+            total_users.update(chat.keys() - {"chat", "_id"})  # Add user IDs to the set
 
-    await message.reply_text(response_text)
+        response_text = (
+            f"**Bot Status:**\n"
+            f"- Total Chats: {total_chats}\n"
+            f"- Total Users: {len(total_users)}\n"
+            f"- Total Messages: {total_messages}\n"
+        )
+        
+        await message.reply_text(response_text)
+
 
 async def show_top_today(_, message: Message):
-    logging.info(f"Showing today's top in {message.chat.id}")
+    print("today top in", message.chat.id)
     chat = chatdb.find_one({"chat": message.chat.id})
     today = str(date.today())
 
-    if not chat or today not in chat:
-        return await message.reply_text("No data available", reply_markup=create_reply_markup("Overall Ranking", "overall"))
+    if not chat:
+        return await message.reply_text("no data available",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Overall Ranking", callback_data="overall")]]
+        ),)
+
+    if not chat.get(today):
+        return await message.reply_text("no data available for today",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Overall Ranking", callback_data="overall")]]
+        ),)
 
     t = "🔰 **Today's Top Users :**\n\n"
+
     pos = 1
     for i, k in sorted(chat[today].items(), key=lambda x: x[1], reverse=True)[:10]:
-        name = await get_name(app, i)
-        t += f"**{pos}.** {name} - {k}\n"
+        i = await get_name(app, i)
+
+        t += f"**{pos}.** {i} - {k}\n"
         pos += 1
 
     total = sum(chat[today].values())
     t += f'\n✉️ Today messages: {total}'
 
-    await message.reply_text(t, reply_markup=create_reply_markup("Overall Ranking", "overall"))
+    await message.reply_text(
+        t,
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Overall Ranking", callback_data="overall")]]
+        ),
+    )
+
 
 @app.on_callback_query(filters.regex("overall"))
 async def show_top_overall_callback(_, query: CallbackQuery):
-    logging.info(f"Showing overall top in {query.message.chat.id}")
+    print("overall top in", query.message.chat.id)
     chat = chatdb.find_one({"chat": query.message.chat.id})
 
     if not chat:
         return await query.answer("No data available", show_alert=True)
 
     await query.answer("Processing... Please wait")
-    overall_dict = {}
-    total = 0
-
-    for i, k in chat.items():
-        if i in {"chat", "_id"}:
-            continue
-        for j, l in k.items():
-            overall_dict[j] = overall_dict.get(j, 0) + l
-        total += sum(k.values())
 
     t = "🔰 **Overall Top Users :**\n\n"
+
+    overall_dict = {}
+    total = 0
+    for i, k in chat.items():
+        if i == "chat" or i == "_id":
+            continue
+
+        for j, l in k.items():
+            if j not in overall_dict:
+                overall_dict[j] = l
+            else:
+                overall_dict[j] += l
+
+        total += sum(k.values())
+    
     pos = 1
     for i, k in sorted(overall_dict.items(), key=lambda x: x[1], reverse=True)[:10]:
-        name = await get_name(app, i)
-        t += f"**{pos}.** {name} - {k}\n"
+        i = await get_name(app, i)
+
+        t += f"**{pos}.** {i} - {k}\n"
         pos += 1
 
     t += f'\n✉️ Today messages: {total}'
-    await query.message.edit_text(t, reply_markup=create_reply_markup("Today's Ranking", "today"))
+
+    await query.message.edit_text(
+        t,
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Today's Ranking", callback_data="today")]]
+        ),
+    )
+
 
 @app.on_callback_query(filters.regex("today"))
 async def show_top_today_callback(_, query: CallbackQuery):
-    logging.info(f"Showing today's top in {query.message.chat.id}")
+    print("today top in", query.message.chat.id)
     chat = chatdb.find_one({"chat": query.message.chat.id})
     today = str(date.today())
 
-    if not chat or today not in chat:
+    if not chat:
         return await query.answer("No data available", show_alert=True)
 
-    await query.answer("Processing... Please wait")
-    t = "🔰 **Today's Top Users :**\n\n"
-    pos = 1
+    if not chat.get(today):
+        return await query.answer("No data available for today", show_alert=True)
 
+    await query.answer("Processing... Please wait")
+
+    t = "🔰 **Today's Top Users :**\n\n"
+
+    pos = 1
     for i, k in sorted(chat[today].items(), key=lambda x: x[1], reverse=True)[:10]:
-        name = await get_name(app, i)
-        t += f"**{pos}.** {name} - {k}\n"
+        i = await get_name(app, i)
+
+        t += f"**{pos}.** {i} - {k}\n"
         pos += 1
 
     total = sum(chat[today].values())
     t += f'\n✉️ Today messages: {total}'
 
-    await query.message.edit_text(t, reply_markup=create_reply_markup("Overall Ranking", "overall"))
+    await query.message.edit_text(
+        t,
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Overall Ranking", callback_data="overall")]]
+        ),
+    )
 
-if __name__ == "__main__":
-    logging.info("Bot started")
-    app.run()
+
+print("started")
+app.run()
