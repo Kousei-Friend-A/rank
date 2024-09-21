@@ -1,43 +1,42 @@
 from pymongo.mongo_client import MongoClient
 from datetime import date
-import logging
 
-uri = "mongodb://root:6cK44nQntSN0Cru8Nqstxxb8CDbSxsFo9PL55UByB323BM42z9H7HsaqXFn4etD4@eog8448c8skw4wk0cogwsk4s:27017/?directConnection=true"
-mongo = MongoClient(uri).Rankings
-chatdb = mongo.chat
+uri = "mongodb+srv://friendakouseimanu:asdfg@cluster0.1trpq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+mongo = MongoClient(uri)
+chatdb = mongo.Rankings.chat
+statistics_db = mongo.Rankings.statistics  # New collection for statistics
 
 def increase_count(chat, user):
     user = str(user)
     today = str(date.today())
-    
-    chatdb.update_one(
-        {"chat": chat},
-        {
-            "$setOnInsert": {today: {}},  # Create today's entry if it doesn't exist
-            "$inc": {f"{today}.{user}": 1}  # Increment the user's count for today
-        },
-        upsert=True
-    )
+    user_db = chatdb.find_one({"chat": chat})
 
-def get_user_profile(chat, user):
-    user = str(user)
-    today = str(date.today())
-    
-    user_data = chatdb.find_one({"chat": chat})
-
-    if not user_data or today not in user_data:
-        return {
-            "today_count": 0,
-            "total_count": 0
+    if not user_db:
+        user_db = {}
+        total_stats = {
+            "total_users": 0,
+            "total_messages": 0,
+            "total_chats": 1  # New chat
         }
+        statistics_db.update_one({}, {"$set": total_stats}, upsert=True)
+    else:
+        total_stats = statistics_db.find_one({}) or {"total_users": 0, "total_messages": 0, "total_chats": 0}
 
-    today_count = user_data[today].get(user, 0)  # Messages sent today
-    total_count = sum(user_data[today].values())  # Total messages today
+    # Increase message count
+    if today not in user_db:
+        user_db[today] = {}
 
-    return {
-        "today_count": today_count,
-        "total_count": total_count
-    }
+    if user in user_db[today]:
+        user_db[today][user] += 1
+    else:
+        user_db[today][user] = 1
+
+    # Update statistics
+    total_stats["total_messages"] += 1
+    total_stats["total_users"] = len(user_db[today])
+    statistics_db.update_one({}, {"$set": total_stats})
+
+    chatdb.update_one({"chat": chat}, {"$set": {today: user_db}}, upsert=True)
 
 name_cache = {}
 
@@ -48,10 +47,10 @@ async def get_name(app, id):
         return name_cache[id]
     else:
         try:
-            user_info = await app.get_users(id)
-            name = f'{(user_info.first_name or "")} {(user_info.last_name or "")}'
-            name_cache[id] = name
-            return name
+            i = await app.get_users(id)
+            i = f'{(i.first_name or "")} {(i.last_name or "")}'
+            name_cache[id] = i
+            return i
         except Exception as e:
-            logging.error(f"Error getting user name for ID {id}: {e}")
+            print(f"Error fetching user name: {e}")
             return id
